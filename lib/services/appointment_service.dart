@@ -24,7 +24,6 @@ class AppointmentService {
 
   // ============================================================
   // ADD APPOINTMENT
-  // Used by booking_screen.dart
   // ============================================================
 
   static Future<String> addAppointment(
@@ -68,8 +67,8 @@ class AppointmentService {
       );
     }
 
-    final DocumentReference<Map<String, dynamic>>
-        document = _appointmentsCollection.doc();
+    final DocumentReference<Map<String, dynamic>> document =
+        _appointmentsCollection.doc();
 
     await document.set({
       'id': document.id,
@@ -132,6 +131,7 @@ class AppointmentService {
 
   // ============================================================
   // CHECK SLOT
+  // No composite Firestore index required.
   // ============================================================
 
   static Future<bool> isSlotBooked({
@@ -139,35 +139,36 @@ class AppointmentService {
     required DateTime date,
     required String time,
   }) async {
-    final DateTime startDate = DateTime(
+    final DateTime selectedDate = DateTime(
       date.year,
       date.month,
       date.day,
     );
 
-    final DateTime endDate =
-        startDate.add(const Duration(days: 1));
-
-    final QuerySnapshot<Map<String, dynamic>>
-        snapshot = await _appointmentsCollection
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _appointmentsCollection
             .where(
               'consultantName',
               isEqualTo: consultantName,
-            )
-            .where(
-              'date',
-              isGreaterThanOrEqualTo:
-                  Timestamp.fromDate(startDate),
-            )
-            .where(
-              'date',
-              isLessThan:
-                  Timestamp.fromDate(endDate),
             )
             .get();
 
     for (final document in snapshot.docs) {
       final data = document.data();
+
+      final dynamic dateValue = data['date'];
+
+      if (dateValue is! Timestamp) {
+        continue;
+      }
+
+      final DateTime savedDate = dateValue.toDate();
+
+      final DateTime savedDay = DateTime(
+        savedDate.year,
+        savedDate.month,
+        savedDate.day,
+      );
 
       final String savedTime =
           data['time']?.toString() ?? '';
@@ -175,7 +176,12 @@ class AppointmentService {
       final String status =
           data['status']?.toString() ?? '';
 
-      if (savedTime == time && status != 'Cancelled') {
+      if (status == 'Cancelled') {
+        continue;
+      }
+
+      if (savedDay == selectedDate &&
+          savedTime == time) {
         return true;
       }
     }
@@ -185,7 +191,6 @@ class AppointmentService {
 
   // ============================================================
   // GET APPOINTMENTS
-  // Used by appointments_screen.dart
   // ============================================================
 
   static Stream<List<Appointment>> getAppointments() {
@@ -207,10 +212,9 @@ class AppointmentService {
       for (final document in snapshot.docs) {
         final data = document.data();
 
-        final Timestamp? timestamp =
-            data['date'] as Timestamp?;
+        final dynamic dateValue = data['date'];
 
-        if (timestamp == null) {
+        if (dateValue is! Timestamp) {
           continue;
         }
 
@@ -222,11 +226,12 @@ class AppointmentService {
                 data['consultantName']?.toString() ?? '',
             specialization:
                 data['specialization']?.toString() ?? '',
-            date: timestamp.toDate(),
+            date: dateValue.toDate(),
             time: data['time']?.toString() ?? '',
             userName:
                 data['userName']?.toString() ?? '',
-            phone: data['phone']?.toString() ?? '',
+            phone:
+                data['phone']?.toString() ?? '',
             reason:
                 data['reason']?.toString() ?? '',
             fee: _toDouble(data['fee']),
@@ -248,8 +253,7 @@ class AppointmentService {
   // GET USER APPOINTMENTS
   // ============================================================
 
-  static Stream<List<Appointment>>
-      getUserAppointments() {
+  static Stream<List<Appointment>> getUserAppointments() {
     return getAppointments();
   }
 
@@ -266,8 +270,8 @@ class AppointmentService {
       return null;
     }
 
-    final DocumentSnapshot<Map<String, dynamic>>
-        document = await _appointmentsCollection
+    final DocumentSnapshot<Map<String, dynamic>> document =
+        await _appointmentsCollection
             .doc(appointmentId)
             .get();
 
@@ -285,10 +289,9 @@ class AppointmentService {
       return null;
     }
 
-    final Timestamp? timestamp =
-        data['date'] as Timestamp?;
+    final dynamic dateValue = data['date'];
 
-    if (timestamp == null) {
+    if (dateValue is! Timestamp) {
       return null;
     }
 
@@ -299,7 +302,7 @@ class AppointmentService {
           data['consultantName']?.toString() ?? '',
       specialization:
           data['specialization']?.toString() ?? '',
-      date: timestamp.toDate(),
+      date: dateValue.toDate(),
       time: data['time']?.toString() ?? '',
       userName:
           data['userName']?.toString() ?? '',
@@ -328,12 +331,11 @@ class AppointmentService {
       );
     }
 
-    final DocumentReference<Map<String, dynamic>>
-        document = _appointmentsCollection
-            .doc(appointmentId);
+    final DocumentReference<Map<String, dynamic>> document =
+        _appointmentsCollection.doc(appointmentId);
 
-    final DocumentSnapshot<Map<String, dynamic>>
-        snapshot = await document.get();
+    final DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await document.get();
 
     if (!snapshot.exists) {
       throw Exception(
@@ -391,12 +393,11 @@ class AppointmentService {
       );
     }
 
-    final DocumentReference<Map<String, dynamic>>
-        document = _appointmentsCollection
-            .doc(appointmentId);
+    final DocumentReference<Map<String, dynamic>> document =
+        _appointmentsCollection.doc(appointmentId);
 
-    final DocumentSnapshot<Map<String, dynamic>>
-        snapshot = await document.get();
+    final DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await document.get();
 
     if (!snapshot.exists) {
       throw Exception(
