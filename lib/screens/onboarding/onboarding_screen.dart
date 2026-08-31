@@ -63,10 +63,8 @@ class _OnboardingScreenState
   }
 
   @override
-  Widget build(BuildContext context) {
-    final page = pages[currentPage];
-
-    return Scaffold(
+Widget build(BuildContext context) {
+  return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
